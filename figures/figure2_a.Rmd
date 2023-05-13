@@ -1,0 +1,125 @@
+---
+title: "fig1"
+author: "shimw6828"
+date: "2021/8/13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 气泡图
+包含数据情况的气泡图，展示数据情况
+
+
+```{r}
+##读入数据
+landscape <- readr::read_csv("/NAS/luozh/CancerEnhancerDB/step7_help/data_landscape.csv")
+landscape <- landscape%>%
+  tidyr::gather(xa,sa,-Abbreviation,-Cancer.type)
+
+landscape$sa <- as.numeric(landscape$sa)
+
+landscape$Cancer.type
+landscape = landscape[landscape$xa!="RNA",]
+landscape <- landscape%>%
+  dplyr::filter(sa!=0)%>%
+  dplyr::select(-Cancer.type)%>%
+  dplyr::distinct()
+landscape%>%
+  dplyr::filter(sa!=0)%>%
+  ggplot(aes(x = xa, y = Abbreviation))+
+  geom_point(aes(size = sa, col = xa), alpha = 0.5)+
+  scale_x_discrete(limits = c("primary_tissue","cell_line","ATAC","cancer_eQTL"),
+                   labels=c("Primary tissue", "Cell line", "ATAC","Cancer eQTL"))+
+  scale_y_discrete(limits = unique(landscape$Abbreviation[order(landscape$Abbreviation, decreasing = T)]))+
+  scale_color_nejm(limits = c("primary_tissue","cell_line","ATAC","cancer_eQTL"),
+                   labels=c("Primary tissue", "Cell line", "ATAC","Cancer eQTL"))+
+  scale_size_continuous(guide="none")+
+  # scale_color_discrete()+
+  theme(
+      panel.background = element_rect(colour = "white", fill = "white"),
+      axis.title = element_blank(),
+      axis.ticks = element_blank(),
+      axis.text.x = element_blank(),
+      legend.title=element_blank(),
+      legend.background = element_blank(), 
+      legend.position = "right" 
+    ) -> p
+
+ggsave(
+    filename = "fig1a.pdf",
+    plot = p,
+    device = "pdf",
+    width = 3,
+    height = 8,
+    path = "/home/shimw/project/enhancer_map/"
+  )
+
+```
+
+
+
+## circos图
+
+```{r}
+library(circlize)
+library(RColorBrewer)
+##读入数据
+
+over_per <- read.csv("/NAS/luozh/CancerEnhancerDB/step6_peak_figure/peak_overlap_0823_circle.csv", row.names = 1, header = T)
+#over_per
+over_per <- scale(over_per)
+over_per <- as.matrix(over_per)
+over_per <- scale(t(over_per))
+over_per <- as.matrix(over_per)%>%t()%>%as.data.frame()
+######
+over_per$cell_line = paste("cell",row.names(over_per),sep = "_")
+data2 <- gather(over_per, primary, overlap, -cell_line)
+data2$primary <- paste("primary",data2$primary,sep = "_")
+##筛选掉per小的
+data3 <- data2 %>% group_by(cell_line) %>% top_n(n=3)
+data3$overlap <- data3$overlap/5
+#颜色
+cancer_col = c(brewer.pal(9, "Set1") ,brewer.pal(10, "Set3"))
+
+circos.clear()
+dev.off()
+library(Cairo)
+
+CairoPDF(file = "/home/shimw/project/enhancer_map/circos.pdf", ,width=7,height=7)
+circos.par(gap.degree = c(rep(2, length(row.names(over_per))-1), 5, rep(2, length(row.names(over_per))-1), 5))
+circos.initialize(c(paste("cell",row.names(over_per),sep = "_"),
+                    rev(paste("primary",row.names(over_per),sep = "_"))), xlim = c(0, 1))
+
+circos.track(ylim = c(1, 2),  track.height = mm_h(1), cell.padding = c(0, 0, 0, 0), bg.border = NA)
+highlight.sector(paste("cell",row.names(over_per),sep = "_"),padding =c(-0.3,0,0,0), col = "#e8d5e9", track.index = 1, text = "Cell line", cex = 1.3, niceFacing = TRUE, text.vjust = "4mm")
+highlight.sector(paste("primary",row.names(over_per),sep = "_"),padding =c(-0.3,0,0,0), col = "#daf0d4", track.index = 1, text = "Primary tissue", cex = 1.3, niceFacing = TRUE, text.vjust = "4mm")
+circos.track(ylim = c(0, 1),track.margin=c(0.02,0.2),bg.col = c(cancer_col,cancer_col),bg.border = NA,  track.height = 0.050, panel.fun = function(x, y) {
+  circos.text(CELL_META$xcenter, CELL_META$ylim[2] + mm_y(2), adj=c(0,0.5),
+              gsub(".*_", "", CELL_META$sector.index), cex = 1, facing = "clockwise", niceFacing = T)})
+#nrow(data4)
+data_plot = data3
+for (i in 1:nrow(data_plot)) {
+  # data_plot[i,]$cell_line
+  # data_plot[i,]$primary
+  mid = data_plot[i,]$overlap/1.5
+  if (gsub(".*_", "",data_plot[i,]$cell_line)!=gsub(".*_", "",data_plot[i,]$primary)) {
+    circos.link(data_plot[i,]$cell_line, c(0.5-mid,0.5+mid), data_plot[i,]$primary, c(0.5-mid,0.5+mid),col = "#80808035")
+  }
+}
+for (i in 1:nrow(data_plot)) {
+  # data_plot[i,]$cell_line
+  # data_plot[i,]$primary
+  mid = data_plot[i,]$overlap/1.5
+  if (gsub(".*_", "",data_plot[i,]$cell_line)==gsub(".*_", "",data_plot[i,]$primary)) {
+    circos.link(data_plot[i,]$cell_line, c(0.5-mid,0.5+mid), data_plot[i,]$primary, c(0.5-mid,0.5+mid),col = "#e8828080")
+  }
+}
+
+dev.off()
+
+
+```
+
