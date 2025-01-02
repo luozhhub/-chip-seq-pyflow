@@ -1,5 +1,5 @@
 # script for CenhANCER
-CenhANCER: https://chenzxlab.hzau.edu.cn/cenhancer/#/
+New URL of CenhANCER: https://chenzxlab.hzau.edu.cn/cenhancer/#/
 
 # chip-seq-pipeline
 This repository containing all the figure plot script for the published paper and major analysis steps.
